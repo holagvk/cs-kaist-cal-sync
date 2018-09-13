@@ -1,6 +1,6 @@
+# -*- coding: utf-8 -*-
 from csweb import CSWeb
 from gcalendar import GCalendar
-
 
 if __name__ == '__main__':
     web = CSWeb()
