@@ -45,28 +45,48 @@ class CSWeb:
                 description = entry['description']
 
         url_pattern = 'https://cs.kaist.ac.kr/board/view?bbs_id=events&bbs_sn={}&menu=86'
-        r = requests.get(url_pattern.format(event_id))
+        event_url = url_pattern.format(event_id)
+
+        # prepend event URL to description
+        description = """Event URL: {}
+        <br/>
+        {}
+        """.format(event_url, description)
+
+        r = requests.get(event_url)
         soup = BeautifulSoup(r.text, 'html.parser')
 
         # start_dt, end_dt
         dt_info = soup.find('p', class_='seminarsInfo').text.split('\n')[1].split('@')
         date_str = dt_info[0].strip()
 
-        time_info = dt_info[1].strip().split('~')
+        try:
+            time_info = dt_info[1].strip().split('~')
 
-        start_time = time_info[0]
-        start_dt_str = '{} @ {}'.format(date_str, start_time)
-        start_dt = datetime.strptime(start_dt_str, '%a, %b %d, %Y @ %H:%M')
+            start_time = time_info[0]
+            start_dt_str = '{} @ {}'.format(date_str, start_time)
+            start_dt = datetime.strptime(start_dt_str, '%a, %b %d, %Y @ %H:%M')
 
-        if len(time_info) == 2:
-            end_time = time_info[1]
-            end_dt_str = '{} @ {}'.format(date_str, end_time)
-            end_dt = datetime.strptime(end_dt_str, '%a, %b %d, %Y @ %H:%M')
-        else:
-            # assume 1hr 30m event
+            if len(time_info) == 2:
+                end_time = time_info[1]
+                end_dt_str = '{} @ {}'.format(date_str, end_time)
+                end_dt = datetime.strptime(end_dt_str, '%a, %b %d, %Y @ %H:%M')
+            else:
+                # assume 1hr 30m event
+                end_dt = start_dt + timedelta(hours=1, minutes=30)
+        # Well, sometimes time information doesn't exist
+        # assuming 8AM; pull request welcome from NLP ninja
+        except IndexError:
+            start_dt_str = '{} @ {}'.format(date_str, '08:00')
+            start_dt = datetime.strptime(start_dt_str, '%a, %b %d, %Y @ %H:%M')
+
+            # again, assume 1hr 30m event. duh!
             end_dt = start_dt + timedelta(hours=1, minutes=30)
 
         # location
-        location = soup.find('strong', text=re.compile('Location:*')).text.split(':')[-1].strip()
+        try:
+            location = soup.find('strong', text=re.compile('Location:*')).text.split(':')[-1].strip()
+        except AttributeError:
+            location = 'TSIAK'
 
         return title, location, description, start_dt, end_dt
